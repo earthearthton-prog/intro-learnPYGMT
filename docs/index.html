@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyGMT Command Center 🛰️ | 地理空間繪圖終端</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            black: '#050505',
+                            dark: '#0a0a0a',
+                            panel: '#111111',
+                            blue: '#00f3ff',
+                            pink: '#ff00ff',
+                            border: '#333333'
+                        },
+                        github: {
+                            bg: '#0d1117',
+                            card: '#161b22',
+                            border: '#30363d',
+                            text: '#c9d1d9',
+                            link: '#58a6ff'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', '"Fira Code"', 'Consolas', 'monospace'],
+                        sans: ['"Inter"', 'system-ui', 'sans-serif']
+                    },
+                    animation: {
+                        'spin-slow': 'spin 10s linear infinite',
+                        'grid-flow': 'gridFlow 20s linear infinite',
+                    },
+                    keyframes: {
+                        gridFlow: {
+                            '0%': { transform: 'translateY(0)' },
+                            '100%': { transform: 'translateY(50px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        body {
+            cursor: none; /* Hide default cursor */
+        }
+        
+        /* Custom Cursor */
+        #cursor-dot, #cursor-outline {
+            position: fixed;
+            top: 0; left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        #cursor-dot { width: 8px; height: 8px; background-color: #00f3ff; }
+        #cursor-outline {
+            width: 40px; height: 40px;
+            border: 2px solid rgba(0, 243, 255, 0.5);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+        }
+        
+        /* Cyberpunk Grid Background */
+        .cyber-grid {
+            background-size: 50px 50px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Glitch Effect Text */
+        .glitch {
+            position: relative;
+        }
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #0d1117;
+        }
+        .glitch::before { left: 2px; text-shadow: -1px 0 #ff00c1; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim 5s infinite linear alternate-reverse; }
+        .glitch::after { left: -2px; text-shadow: -1px 0 #00fff9; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim2 5s infinite linear alternate-reverse; }
+        
+        @keyframes glitch-anim {
+            0% { clip: rect(10px, 9999px, 30px, 0); }
+            20% { clip: rect(80px, 9999px, 100px, 0); }
+            100% { clip: rect(40px, 9999px, 60px, 0); }
+        }
+
+        /* Map HUD Overlay */
+        .hud-corner {
+            position: absolute; width: 20px; height: 20px;
+            border: 2px solid #00f3ff; z-index: 500;
+        }
+        .tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+        .tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+        .bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+        .br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+        /* Resource Card specific style (GitHub Dark) */
+        .gh-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        .gh-card:hover {
+            border-color: #8b949e;
+            transform: translateY(-2px);
+        }
+        .gh-link { color: #58a6ff; text-decoration: none; }
+        .gh-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-[#0d1117] text-gray-800 dark:text-gray-300 font-sans selection:bg-cyber-pink selection:text-white">
+
+    <div id="cursor-dot"></div>
+    <div id="cursor-outline"></div>
+
+    <div class="fixed inset-0 cyber-grid pointer-events-none z-0 opacity-20 dark:opacity-40"></div>
+
+    <nav class="fixed w-full z-50 glass-panel border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2 group cursor-pointer" onclick="window.scrollTo(0,0)">
+                <i class="fa-solid fa-terminal text-cyber-blue text-xl group-hover:animate-pulse"></i>
+                <span class="font-mono font-bold text-xl tracking-tighter">PyGMT<span class="text-cyber-blue">_LAB</span></span>
+            </div>
+            
+            <div class="hidden md:flex gap-8 text-sm font-mono text-gray-500 dark:text-gray-400">
+                <a href="#map-hud" class="hover:text-cyber-blue transition relative group">
+                    <span class="group-hover:opacity-100 opacity-0 absolute -left-4 text-cyber-pink">></span> MAP_SYSTEM
+                </a>
+                <a href="#code-matrix" class="hover:text-cyber-blue transition relative group">
+                    <span class="group-hover:opacity-100 opacity-0 absolute -left-4 text-cyber-pink">></span> CODE_MATRIX
+                </a>
+                <a href="#data-vault" class="hover:text-cyber-blue transition relative group">
+                    <span class="group-hover:opacity-100 opacity-0 absolute -left-4 text-cyber-pink">></span> DATA_VAULT
+                </a>
+            </div>
+
+            <button id="theme-toggle" class="w-10 h-10 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center hover:border-cyber-blue transition">
+                <i id="theme-icon" class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <header class="relative pt-40 pb-32 px-6 overflow-hidden">
+        <div class="max-w-6xl mx-auto text-center relative z-10">
+            <div class="inline-block px-4 py-1 mb-6 border border-cyber-blue/30 rounded-full bg-cyber-blue/5 text-cyber-blue font-mono text-xs tracking-[0.2em] animate-pulse">
+                SYSTEM STATUS: ONLINE
+            </div>
+            
+            <h1 class="text-6xl md:text-9xl font-black mb-6 tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-gray-900 to-gray-500 dark:from-white dark:to-gray-600 glitch" data-text="PyGMT">
+                PyGMT
+            </h1>
+            
+            <p class="text-xl md:text-2xl text-gray-600 dark:text-gray-400 font-light max-w-3xl mx-auto mb-12 leading-relaxed">
+                <span class="text-cyber-pink font-bold">Python</span> 驅動的地理繪圖引擎。<br>
+                在數據與藝術的邊界，重新定義地圖學。
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-6">
+                <a href="#map-hud" class="relative px-8 py-4 bg-cyber-blue text-black font-bold font-mono rounded hover:bg-white transition overflow-hidden group">
+                    <span class="relative z-10">INITIALIZE_MAP()</span>
+                    <div class="absolute inset-0 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+                </a>
+                <a href="#install-log" class="px-8 py-4 border border-gray-300 dark:border-gray-700 font-mono rounded hover:border-cyber-pink hover:text-cyber-pink transition">
+                    VIEW_DOCS()
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <section id="map-hud" class="py-20 relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex items-end justify-between mb-8">
+                <div>
+                    <h2 class="text-4xl font-bold mb-2">衛星定位系統 <span class="text-cyber-blue">.REGION</span></h2>
+                    <p class="text-gray-500 font-mono text-sm">DRAG MAP TO ACQUIRE COORDINATES</p>
+                </div>
+                <div class="hidden md:block">
+                    <div class="flex gap-2">
+                        <div class="w-2 h-2 bg-cyber-blue rounded-full animate-ping"></div>
+                        <span class="font-mono text-xs text-cyber-blue">LIVE DATA FEED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-4 space-y-4">
+                    <div class="glass-panel p-6 rounded-lg border-l-4 border-cyber-blue relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl font-black italic">WESN</div>
+                        <label class="text-xs font-mono text-gray-500 uppercase tracking-widest">Target Parameter</label>
+                        <div class="mt-2 flex items-center justify-between">
+                            <code id="region-code" class="text-cyber-blue font-mono text-lg break-all">Initializing...</code>
+                            <button onclick="copyCode()" class="ml-4 p-2 hover:text-white text-gray-500 transition"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                        <div class="mt-4 h-1 w-full bg-gray-800 rounded overflow-hidden">
+                            <div class="h-full bg-cyber-blue animate-progress"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="glass-panel p-4 rounded text-center">
+                            <div class="text-xs text-gray-500 font-mono mb-1">LONGITUDE (X)</div>
+                            <div id="disp-lon" class="text-xl font-bold font-mono">---</div>
+                        </div>
+                        <div class="glass-panel p-4 rounded text-center">
+                            <div class="text-xs text-gray-500 font-mono mb-1">LATITUDE (Y)</div>
+                            <div id="disp-lat" class="text-xl font-bold font-mono">---</div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-500 text-xs font-mono">
+                        <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                        TIP: 此參數直接適用於 fig.coast() 與 fig.grdimage()
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 relative h-[500px] rounded-lg overflow-hidden border border-gray-800 group">
+                    <div id="map" class="w-full h-full z-10 grayscale hover:grayscale-0 transition-all duration-700"></div>
+                    
+                    <div class="hud-corner tl"></div>
+                    <div class="hud-corner tr"></div>
+                    <div class="hud-corner bl"></div>
+                    <div class="hud-corner br"></div>
+                    
+                    <div class="absolute top-1/2 left-1/2 w-12 h-12 border border-cyber-blue/50 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none z-20 flex items-center justify-center">
+                        <div class="w-1 h-1 bg-cyber-blue rounded-full"></div>
+                    </div>
+                    <div class="absolute bottom-4 left-4 z-20 font-mono text-xs text-cyber-blue bg-black/50 px-2 py-1 rounded">
+                        ZOOM_LEVEL: <span id="zoom-level">5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="code-matrix" class="py-20 bg-gray-100 dark:bg-black/20">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-4xl font-bold mb-10 text-center">代碼實驗室 <span class="text-cyber-pink">.BUILDER</span></h2>
+            
+            <div class="glass-panel rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col md:flex-row">
+                <div class="w-full md:w-1/3 p-8 border-r border-gray-700 bg-[#0d1117]">
+                    <h3 class="font-mono text-sm text-gray-400 mb-6 border-b border-gray-700 pb-2">CONFIGURATION</h3>
+                    
+                    <div class="space-y-8">
+                        <div>
+                            <label class="block text-xs font-bold text-cyber-blue mb-3">PROJECTION (-J)</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="updateBuilder('proj', 'M15c')" class="p-2 text-xs font-mono border border-gray-600 rounded hover:border-cyber-blue hover:text-cyber-blue transition text-left active-btn" data-group="proj">Mercator (M)</button>
+                                <button onclick="updateBuilder('proj', 'Q15c')" class="p-2 text-xs font-mono border border-gray-600 rounded hover:border-cyber-blue hover:text-cyber-blue transition text-left" data-group="proj">Cylindrical (Q)</button>
+                                <button onclick="updateBuilder('proj', 'G60/20/15c')" class="p-2 text-xs font-mono border border-gray-600 rounded hover:border-cyber-blue hover:text-cyber-blue transition text-left" data-group="proj">Orthographic (G)</button>
+                                <button onclick="updateBuilder('proj', 'X15c/10c')" class="p-2 text-xs font-mono border border-gray-600 rounded hover:border-cyber-blue hover:text-cyber-blue transition text-left" data-group="proj">Linear (X)</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-cyber-pink mb-3">LAND COLOR (-G)</label>
+                            <select onchange="updateBuilder('land', this.value)" class="w-full bg-[#161b22] border border-gray-600 text-gray-300 text-sm rounded p-2 focus:border-cyber-pink outline-none font-mono">
+                                <option value="gray">gray (灰色)</option>
+                                <option value="black">black (黑色)</option>
+                                <option value="darkgreen">darkgreen (深綠)</option>
+                                <option value="bisque">bisque (陶色)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-2/3 bg-[#050505] p-8 font-mono text-sm relative">
+                    <div class="flex gap-2 mb-4">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <div class="ml-auto text-xs text-gray-600">main.py</div>
+                    </div>
+                    
+                    <div class="text-gray-300 leading-relaxed">
+                        <span class="text-purple-400">import</span> pygmt<br><br>
+                        <span class="text-gray-500"># 初始化畫布</span><br>
+                        fig = pygmt.Figure()<br><br>
+                        <span class="text-gray-500"># 繪製底圖</span><br>
+                        fig.coast(<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;region=[<span class="text-orange-400">-180</span>, <span class="text-orange-400">180</span>, <span class="text-orange-400">-60</span>, <span class="text-orange-400">60</span>],<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">projection</span>="<span id="code-proj" class="text-green-400">M15c</span>",<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">land</span>="<span id="code-land" class="text-green-400">gray</span>",<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">water</span>="<span class="text-green-400">lightblue</span>",<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">frame</span>="<span class="text-green-400">afg</span>"<br>
+                        )<br><br>
+                        fig.show()
+                    </div>
+
+                    <div class="absolute bottom-8 left-8 w-2 h-4 bg-cyber-blue animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="data-vault" class="py-20">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <i class="fa-solid fa-database text-gray-500"></i>
+                資源庫 <span class="font-mono text-base text-gray-500 font-normal">./RESOURCES</span>
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div class="gh-card p-4" data-tilt data-tilt-glare data-tilt-max-glare="0.1">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">OFFICIAL DOCS</div>
+                            <h3 class="text-github-text font-bold mb-2">PyGMT Documentation</h3>
+                            <p class="text-sm text-gray-500 mb-4">官方最新文檔，包含所有 API 說明。</p>
+                        </div>
+                        <i class="fa-solid fa-book text-gray-600"></i>
+                    </div>
+                    <a href="https://www.pygmt.org/latest/" target="_blank" class="text-sm text-github-link hover:underline font-mono">pygmt.org/latest <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+                <div class="gh-card p-4" data-tilt>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">CORE LIBRARY</div>
+                            <h3 class="text-github-text font-bold mb-2">GMT Official Site</h3>
+                            <p class="text-sm text-gray-500 mb-4">通用製圖工具 (Generic Mapping Tools) 主站。</p>
+                        </div>
+                        <i class="fa-solid fa-earth-americas text-gray-600"></i>
+                    </div>
+                    <a href="https://www.generic-mapping-tools.org/" target="_blank" class="text-sm text-github-link hover:underline font-mono">generic-mapping-tools.org <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+                <div class="gh-card p-4" data-tilt>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">EXAMPLES</div>
+                            <h3 class="text-github-text font-bold mb-2">Gallery 範例藝廊</h3>
+                            <p class="text-sm text-gray-500 mb-4">數百個精美的繪圖範例源碼。</p>
+                        </div>
+                        <i class="fa-solid fa-images text-gray-600"></i>
+                    </div>
+                    <a href="https://www.pygmt.org/latest/gallery/index.html" target="_blank" class="text-sm text-github-link hover:underline font-mono">View Gallery <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+                <div class="gh-card p-4" data-tilt>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">COMMUNITY</div>
+                            <h3 class="text-github-text font-bold mb-2">GMT Forum</h3>
+                            <p class="text-sm text-gray-500 mb-4">全球開發者討論區，發問與解決問題。</p>
+                        </div>
+                        <i class="fa-solid fa-comments text-gray-600"></i>
+                    </div>
+                    <a href="https://forum.generic-mapping-tools.org/" target="_blank" class="text-sm text-github-link hover:underline font-mono">forum.generic-mapping-tools.org <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+                 <div class="gh-card p-4" data-tilt>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">INTERACTIVE</div>
+                            <h3 class="text-github-text font-bold mb-2">Binder Online</h3>
+                            <p class="text-sm text-gray-500 mb-4">免安裝，直接在瀏覽器執行 PyGMT。</p>
+                        </div>
+                        <i class="fa-solid fa-play text-gray-600"></i>
+                    </div>
+                    <a href="https://mybinder.org/v2/gh/GenericMappingTools/try-pygmt/master?filepath=index.ipynb" target="_blank" class="text-sm text-github-link hover:underline font-mono">Launch Binder <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+                 <div class="gh-card p-4" data-tilt>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-1">PLATFORM</div>
+                            <h3 class="text-github-text font-bold mb-2">Google Colab</h3>
+                            <p class="text-sm text-gray-500 mb-4">Google 提供的免費 Jupyter Notebook 環境。</p>
+                        </div>
+                        <i class="fa-brands fa-google text-gray-600"></i>
+                    </div>
+                    <a href="https://colab.research.google.com/" target="_blank" class="text-sm text-github-link hover:underline font-mono">colab.research.google.com <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="py-20 bg-gray-50 dark:bg-black/40">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-3xl font-bold mb-10 text-center">參數速查表 <span class="text-cyber-pink">.PARAM</span></h2>
+            
+            <div class="overflow-x-auto rounded-lg border border-gray-700 shadow-2xl">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-800 text-gray-400 font-mono text-xs uppercase">
+                        <tr>
+                            <th class="p-4 border-b border-gray-700">Argument</th>
+                            <th class="p-4 border-b border-gray-700">Alias (GMT)</th>
+                            <th class="p-4 border-b border-gray-700">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-[#0d1117] text-gray-300 font-mono text-sm divide-y divide-gray-800">
+                        <tr class="hover:bg-gray-800 transition group cursor-help">
+                            <td class="p-4 text-cyber-blue font-bold">region</td>
+                            <td class="p-4 text-gray-500">-R</td>
+                            <td class="p-4 group-hover:text-white">設定繪圖範圍 [W, E, S, N]</td>
+                        </tr>
+                        <tr class="hover:bg-gray-800 transition group cursor-help">
+                            <td class="p-4 text-cyber-blue font-bold">projection</td>
+                            <td class="p-4 text-gray-500">-J</td>
+                            <td class="p-4 group-hover:text-white">地圖投影法 (例如 "M15c" 麥卡托)</td>
+                        </tr>
+                        <tr class="hover:bg-gray-800 transition group cursor-help">
+                            <td class="p-4 text-cyber-blue font-bold">frame</td>
+                            <td class="p-4 text-gray-500">-B</td>
+                            <td class="p-4 group-hover:text-white">邊框與座標軸標籤設定 (例如 "afg")</td>
+                        </tr>
+                        <tr class="hover:bg-gray-800 transition group cursor-help">
+                            <td class="p-4 text-cyber-blue font-bold">style</td>
+                            <td class="p-4 text-gray-500">-S</td>
+                            <td class="p-4 group-hover:text-white">符號樣式 (c=圓, t=三角, a=星形)</td>
+                        </tr>
+                         <tr class="hover:bg-gray-800 transition group cursor-help">
+                            <td class="p-4 text-cyber-blue font-bold">cmap</td>
+                            <td class="p-4 text-gray-500">-C</td>
+                            <td class="p-4 group-hover:text-white">顏色表 (Colormap)，用於 grdimage 或散點圖</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-black text-gray-600 py-12 border-t border-gray-800 font-mono text-xs">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <p>SYSTEM_ID: PyGMT-WEB-V2.0</p>
+                <p>STATUS: OPERATIONAL</p>
+            </div>
+            
+            <div class="flex gap-6 text-xl">
+                <a href="#" class="hover:text-cyber-blue transition transform hover:scale-125"><i class="fa-brands fa-github"></i></a>
+                <a href="#" class="hover:text-cyber-pink transition transform hover:scale-125"><i class="fa-brands fa-twitter"></i></a>
+                <a href="#" class="hover:text-white transition transform hover:scale-125"><i class="fa-solid fa-envelope"></i></a>
+            </div>
+
+            <div class="text-right">
+                <p>MADE WITH <i class="fa-solid fa-heart text-red-500 animate-pulse"></i> FOR EARTH SCIENCE</p>
+                <p class="mt-1">© 2025 UNOFFICIAL FAN PAGE</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. Custom Cursor Logic
+        const cursorDot = document.getElementById("cursor-dot");
+        const cursorOutline = document.getElementById("cursor-outline");
+
+        window.addEventListener("mousemove", function (e) {
+            const posX = e.clientX;
+            const posY = e.clientY;
+
+            // Dot follows instantly
+            cursorDot.style.left = `${posX}px`;
+            cursorDot.style.top = `${posY}px`;
+
+            // Outline follows with delay (using animate)
+            cursorOutline.animate({
+                left: `${posX}px`,
+                top: `${posY}px`
+            }, { duration: 500, fill: "forwards" });
+        });
+
+        // 2. Interactive Map (Region Picker)
+        const map = L.map('map').setView([23.5, 121], 5);
+        
+        // Define Tile Layers (Cyberpunk / Clean)
+        const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO',
+            maxZoom: 19
+        });
+        const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO',
+            maxZoom: 19
+        });
+
+        let currentLayer = darkTiles;
+        currentLayer.addTo(map);
+
+        function updateRegion() {
+            const b = map.getBounds();
+            const W = b.getWest().toFixed(2);
+            const E = b.getEast().toFixed(2);
+            const S = b.getSouth().toFixed(2);
+            const N = b.getNorth().toFixed(2);
+            
+            document.getElementById('region-code').innerText = `region=[${W}, ${E}, ${S}, ${N}]`;
+            document.getElementById('disp-lon').innerText = `${W} : ${E}`;
+            document.getElementById('disp-lat').innerText = `${S} : ${N}`;
+            document.getElementById('zoom-level').innerText = map.getZoom();
+        }
+
+        map.on('move', updateRegion);
+        updateRegion();
+
+        // 3. Theme Toggle Logic
+        const html = document.documentElement;
+        const toggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+
+        // Check system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+            themeIcon.className = "fa-solid fa-sun text-yellow-400";
+            map.removeLayer(lightTiles); map.addLayer(darkTiles);
+        } else {
+            html.classList.remove('dark');
+            themeIcon.className = "fa-solid fa-moon text-gray-600";
+            map.removeLayer(darkTiles); map.addLayer(lightTiles);
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            if (html.classList.contains('dark')) {
+                localStorage.theme = 'dark';
+                themeIcon.className = "fa-solid fa-sun text-yellow-400";
+                map.removeLayer(lightTiles); map.addLayer(darkTiles);
+            } else {
+                localStorage.theme = 'light';
+                themeIcon.className = "fa-solid fa-moon text-gray-600";
+                map.removeLayer(darkTiles); map.addLayer(lightTiles);
+            }
+        });
+
+        // 4. Code Builder Logic
+        function updateBuilder(type, value) {
+            // Update Text
+            document.getElementById(`code-${type}`).innerText = value;
+            
+            // Update Active Button State
+            const buttons = document.querySelectorAll(`button[data-group="${type}"]`);
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(value.split('/')[0].replace('c',''))) { // Simple match logic
+                   btn.classList.add('border-cyber-blue', 'text-cyber-blue');
+                   btn.classList.remove('border-gray-600');
+                } else {
+                   btn.classList.remove('border-cyber-blue', 'text-cyber-blue');
+                   btn.classList.add('border-gray-600');
+                }
+            });
+        }
+
+        // 5. Copy Function
+        function copyCode() {
+            const text = document.getElementById('region-code').innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.querySelector('button[onclick="copyCode()"]');
+            btn.innerHTML = '<i class="fa-solid fa-check text-green-500"></i>';
+            setTimeout(() => btn.innerHTML = '<i class="fa-regular fa-copy"></i>', 2000);
+        }
+
+        // 6. Vanilla Tilt Init
+        VanillaTilt.init(document.querySelectorAll(".gh-card"), {
+            max: 10,
+            speed: 400,
+            glare: true,
+            "max-glare": 0.1,
+            scale: 1.02
+        });
+
+    </script>
+</body>
+</html>
