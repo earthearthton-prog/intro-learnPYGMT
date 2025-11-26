@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PyGMT Command Center V4 🛰️ | 地理空間繪圖終端</title>
+    <title>PyGMT Command Center V6 🛰️ | 地理空間繪圖終端</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -19,9 +19,8 @@
                             blue: '#00f3ff',
                             pink: '#ff00ff',
                             yellow: '#fcee0a',
-                            border: '#333333'
-                        },
-                        github: { bg: '#0d1117', card: '#161b22', border: '#30363d', text: '#c9d1d9', link: '#58a6ff' }
+                            green: '#00ff9d',
+                        }
                     },
                     fontFamily: {
                         mono: ['"JetBrains Mono"', '"Fira Code"', 'Consolas', 'monospace'],
@@ -31,12 +30,14 @@
                         'grid-flow': 'gridFlow 20s linear infinite',
                         'scanline': 'scanline 8s linear infinite',
                         'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'float': 'float 6s ease-in-out infinite',
+                        'scroll': 'scroll 20s linear infinite',
+                        'laser-scan': 'laserScan 3s ease-in-out infinite',
                     },
                     keyframes: {
                         gridFlow: { '0%': { transform: 'translateY(0)' }, '100%': { transform: 'translateY(50px)' } },
                         scanline: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100%)' } },
-                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } }
+                        scroll: { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } },
+                        laserScan: { '0%, 100%': { top: '0%' }, '50%': { top: '100%' } }
                     }
                 }
             }
@@ -52,82 +53,77 @@
         body { cursor: none; overflow-x: hidden; }
         
         /* Custom Cursor */
-        #cursor-dot { width: 6px; height: 6px; background-color: #00f3ff; position: fixed; border-radius: 50%; z-index: 9999; pointer-events: none; }
-        #cursor-outline { width: 30px; height: 30px; border: 1px solid rgba(0, 243, 255, 0.5); position: fixed; border-radius: 50%; z-index: 9999; pointer-events: none; transition: transform 0.1s; }
+        #cursor-dot { width: 6px; height: 6px; background-color: #00f3ff; position: fixed; border-radius: 50%; z-index: 9999; pointer-events: none; mix-blend-mode: difference; }
+        #cursor-outline { width: 30px; height: 30px; border: 1px solid rgba(0, 243, 255, 0.5); position: fixed; border-radius: 50%; z-index: 9999; pointer-events: none; transition: transform 0.1s; mix-blend-mode: difference; }
         
-        /* Cyber Grid */
+        /* Cyber Grid - Light/Dark Adaptive */
         .cyber-grid {
             background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+        }
+        .dark .cyber-grid {
             background-image: linear-gradient(to right, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
                               linear-gradient(to bottom, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-            mask-image: linear-gradient(to bottom, black 20%, transparent 90%);
         }
 
-        /* Glassmorphism */
-        .glass-panel { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        /* Glassmorphism - Adaptive */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.8); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(0, 0, 0, 0.1); 
+        }
+        .dark .glass-panel { 
+            background: rgba(10, 10, 10, 0.8); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+        }
 
-        /* Glitch Text */
-        .glitch { position: relative; }
-        .glitch::before, .glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0d1117; }
-        .glitch::before { left: 2px; text-shadow: -1px 0 #ff00c1; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim 5s infinite linear alternate-reverse; }
-        .glitch::after { left: -2px; text-shadow: -1px 0 #00fff9; clip: rect(44px, 450px, 56px, 0); animation: glitch-anim2 5s infinite linear alternate-reverse; }
-        @keyframes glitch-anim { 0% { clip: rect(10px, 9999px, 30px, 0); } 20% { clip: rect(80px, 9999px, 100px, 0); } 100% { clip: rect(40px, 9999px, 60px, 0); } }
+        /* Video Scan Effect */
+        .video-overlay {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
 
-        /* HUD Corners */
-        .hud-corner { position: absolute; width: 15px; height: 15px; border: 2px solid #00f3ff; z-index: 20; }
-        .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-        .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
-        .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
-        .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-
-        /* Layer Stack 3D */
-        .layer-container { perspective: 1000px; transform-style: preserve-3d; }
-        .layer { transition: all 0.5s ease; transform: rotateX(60deg) rotateZ(-45deg) translateZ(0); box-shadow: 10px 10px 30px rgba(0,0,0,0.5); opacity: 0.3; filter: grayscale(100%); }
-        .layer.active { opacity: 1; filter: grayscale(0%); transform: rotateX(60deg) rotateZ(-45deg) translateZ(var(--z-index)); border: 1px solid #00f3ff; box-shadow: 0 0 15px rgba(0, 243, 255, 0.3); }
-
-        /* CPT Gradients */
-        .bg-gradient-viridis { background: linear-gradient(90deg, #440154, #3b528b, #21918c, #5ec962, #fde725); }
-        .bg-gradient-magma { background: linear-gradient(90deg, #000004, #3b0f70, #8c2981, #fe9f6d, #fcfdbf); }
-        .bg-gradient-geo { background: linear-gradient(90deg, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000); }
-        .bg-gradient-topo { background: linear-gradient(90deg, #000080, #0000ff, #00ffff, #ffff00, #ff0000, #800000); }
-        
-        /* Feature Card Hover */
-        .feature-card:hover .feature-icon { color: #00f3ff; transform: scale(1.1); }
-        .feature-card:hover { border-color: #00f3ff; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
-        
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0a0a0a; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #f0f0f0; }
+        .dark ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #333; }
         ::-webkit-scrollbar-thumb:hover { background: #00f3ff; }
+        
+        /* Layer 3D */
+        .layer-container { perspective: 1000px; transform-style: preserve-3d; }
+        .layer { transition: all 0.5s ease; transform: rotateX(60deg) rotateZ(-45deg) translateZ(0); box-shadow: 10px 10px 30px rgba(0,0,0,0.2); opacity: 0.5; }
+        .dark .layer { box-shadow: 10px 10px 30px rgba(0,0,0,0.5); opacity: 0.3; filter: grayscale(100%); }
+        .layer.active { opacity: 1; filter: grayscale(0%); transform: rotateX(60deg) rotateZ(-45deg) translateZ(var(--z-index)); border: 1px solid #00f3ff; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-[#020202] text-gray-800 dark:text-gray-300 font-sans selection:bg-cyber-pink selection:text-white">
+<body class="bg-gray-50 dark:bg-[#020202] text-gray-800 dark:text-gray-300 font-sans selection:bg-cyber-pink selection:text-white transition-colors duration-300">
 
     <div id="cursor-dot"></div>
     <div id="cursor-outline"></div>
 
     <div class="fixed inset-0 cyber-grid pointer-events-none z-0 opacity-30 animate-grid-flow"></div>
-    <div class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 bg-gradient-to-b from-transparent via-transparent to-[#020202]"></div>
 
-    <nav class="fixed w-full z-50 glass-panel border-b border-white/5">
+    <nav class="fixed w-full z-50 glass-panel border-b dark:border-white/5">
         <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3 group cursor-pointer" onclick="window.scrollTo(0,0)">
                 <div class="w-8 h-8 border border-cyber-blue flex items-center justify-center rounded bg-cyber-blue/10">
                     <i class="fa-solid fa-satellite-dish text-cyber-blue text-sm group-hover:rotate-180 transition duration-700"></i>
                 </div>
-                <span class="font-mono font-bold text-lg tracking-tighter text-white">PyGMT<span class="text-cyber-blue">_CMD_CENTER</span></span>
+                <span class="font-mono font-bold text-lg tracking-tighter text-gray-900 dark:text-white">PyGMT<span class="text-cyber-blue">_CMD</span></span>
             </div>
             
             <div class="hidden lg:flex gap-8 text-xs font-mono font-bold text-gray-500 tracking-widest">
+                <a href="#tutorial-uplink" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-green">></span> TUTORIAL</a>
                 <a href="#system-modules" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-pink">></span> FEATURES</a>
                 <a href="#map-hud" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-pink">></span> MAP</a>
-                <a href="#layer-sim" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-pink">></span> LAYERS</a>
                 <a href="#code-matrix" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-pink">></span> CODE</a>
-                <a href="#data-vault" class="hover:text-cyber-blue transition relative group"><span class="absolute -left-3 opacity-0 group-hover:opacity-100 text-cyber-pink">></span> DATA</a>
             </div>
 
-            <button id="theme-toggle" class="w-8 h-8 rounded border border-gray-700 flex items-center justify-center hover:border-cyber-blue hover:text-cyber-blue transition">
+            <button id="theme-toggle" class="w-8 h-8 rounded border border-gray-300 dark:border-gray-700 flex items-center justify-center hover:border-cyber-blue hover:text-cyber-blue transition text-gray-600 dark:text-gray-400">
                 <i id="theme-icon" class="fa-solid fa-moon text-xs"></i>
             </button>
         </div>
@@ -136,7 +132,6 @@
     <header class="relative pt-48 pb-32 px-6 overflow-hidden min-h-screen flex flex-col justify-center">
         <div class="absolute top-1/4 left-10 w-2 h-2 bg-cyber-pink rounded-full animate-ping"></div>
         <div class="absolute bottom-1/3 right-20 w-3 h-3 bg-cyber-blue rounded-full animate-pulse"></div>
-        <div class="absolute top-20 right-1/4 font-mono text-[10px] text-gray-700 writing-vertical-rl">SYSTEM_READY // V.4.0.0</div>
 
         <div class="max-w-6xl mx-auto text-center relative z-10">
             <div class="inline-flex items-center gap-2 px-3 py-1 mb-8 border border-cyber-blue/30 rounded bg-cyber-blue/5 text-cyber-blue font-mono text-[10px] tracking-[0.3em] backdrop-blur-sm animate-pulse-fast">
@@ -144,220 +139,221 @@
                 GEOSPATIAL INTELLIGENCE
             </div>
             
-            <h1 class="text-7xl md:text-9xl font-black mb-8 tracking-tighter text-white glitch" data-text="PyGMT">
+            <h1 class="text-7xl md:text-9xl font-black mb-8 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-500 dark:from-cyan-400 dark:via-purple-400 dark:to-blue-500 drop-shadow-2xl">
                 PyGMT
             </h1>
             
-            <p class="text-xl md:text-2xl text-gray-400 font-light max-w-2xl mx-auto mb-12 leading-relaxed font-mono">
+            <p class="text-xl md:text-2xl text-gray-600 dark:text-gray-400 font-light max-w-2xl mx-auto mb-12 leading-relaxed font-mono">
                 [Python] 驅動的高精度繪圖引擎。<br>
-                <span class="text-cyber-blue">Visualize</span> the Earth like never before.
+                <span class="text-blue-600 dark:text-cyber-blue font-bold">Visualize</span> the Earth like never before.
             </p>
 
             <div class="flex flex-col sm:flex-row justify-center gap-6">
-                <a href="#system-modules" class="group relative px-10 py-4 bg-cyber-blue text-black font-bold font-mono text-sm tracking-wider clip-path-polygon hover:bg-white transition-colors">
-                    INIT_SYSTEM()
-                    <div class="absolute bottom-0 right-0 w-2 h-2 bg-black"></div>
+                <a href="#tutorial-uplink" class="group relative px-10 py-4 bg-cyber-blue text-black font-bold font-mono text-sm tracking-wider hover:bg-cyan-400 transition-colors shadow-lg shadow-cyan-500/50">
+                    <i class="fa-solid fa-play mr-2"></i> WATCH_TUTORIAL
                 </a>
-                <a href="#terminal-access" class="px-10 py-4 border border-gray-700 text-gray-300 font-mono text-sm tracking-wider hover:border-cyber-pink hover:text-cyber-pink transition bg-black/50 backdrop-blur">
-                    TERMINAL_ACCESS
+                <a href="#system-modules" class="px-10 py-4 border border-gray-400 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-mono text-sm tracking-wider hover:border-cyber-pink hover:text-cyber-pink transition bg-white/50 dark:bg-black/50 backdrop-blur">
+                    EXPLORE_SYSTEM
                 </a>
             </div>
         </div>
-        
-        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50">
-            <div class="w-[1px] h-10 bg-gradient-to-b from-transparent to-cyber-blue"></div>
-            <span class="font-mono text-[10px] text-cyber-blue tracking-widest">SCROLL</span>
-        </div>
     </header>
 
-    <section id="system-modules" class="py-20 relative border-t border-white/5">
+    <section id="tutorial-uplink" class="py-20 relative border-t border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-[#050505]">
         <div class="max-w-7xl mx-auto px-6">
             <div class="flex items-center justify-between mb-12">
                 <div>
-                    <h2 class="text-4xl font-bold text-white mb-2">核心優勢 <span class="text-cyber-pink">.MODULES</span></h2>
-                    <p class="text-gray-500 font-mono text-sm tracking-wider">SYSTEM CAPABILITIES ANALYSIS</p>
+                    <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">教學傳輸鏈 <span class="text-cyber-green">.UPLINK</span></h2>
+                    <p class="text-gray-500 font-mono text-sm tracking-wider">INCOMING VIDEO TRANSMISSION</p>
                 </div>
-                <div class="hidden md:flex gap-2 font-mono text-[10px] text-cyber-blue">
-                    <span>CPU: 12%</span>
-                    <span>MEM: 450MB</span>
-                    <span>NET: ONLINE</span>
+                <div class="hidden md:flex items-center gap-2">
+                    <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <span class="font-mono text-xs text-red-500 font-bold">REC</span>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-xl overflow-hidden shadow-2xl border border-gray-300 dark:border-gray-800 flex flex-col lg:flex-row">
+                <div class="w-full lg:w-2/3 relative group bg-black">
+                    <div class="absolute w-full h-[2px] bg-cyber-green/50 shadow-[0_0_10px_#00ff9d] animate-laser-scan z-20 pointer-events-none"></div>
+                    <div class="absolute inset-0 video-overlay z-10"></div>
+                    
+                    <div class="relative pt-[56.25%]">
+                        <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/H2wgFfvR2pI?si=PyGMT_Tutorial" title="PyGMT Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-1/3 p-8 bg-gray-100 dark:bg-[#0d1117] border-l border-gray-300 dark:border-gray-800 font-mono">
+                    <div class="text-xs font-bold text-gray-400 mb-4 border-b border-gray-300 dark:border-gray-700 pb-2 flex justify-between">
+                        <span>ANALYSIS_LOG</span>
+                        <span class="text-cyber-green">COMPLETE</span>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="group">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>00:00 - 05:00</span>
+                                <span class="text-blue-500">ENV_SETUP</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">環境建置與安裝</h3>
+                            <p class="text-xs text-gray-500">
+                                詳細解說 Anaconda 環境配置，以及使用 `conda install pygmt` 指令進行安裝的完整流程。
+                            </p>
+                            <div class="w-full h-1 bg-gray-300 dark:bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                <div class="w-full h-full bg-blue-500"></div>
+                            </div>
+                        </div>
+
+                        <div class="group">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>05:01 - 12:30</span>
+                                <span class="text-purple-500">BASEMAP</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">基礎地圖繪製</h3>
+                            <p class="text-xs text-gray-500">
+                                示範 `fig.coast()` 參數設定，包含海岸線解析度、陸地填色、國界繪製等基礎操作。
+                            </p>
+                            <div class="w-full h-1 bg-gray-300 dark:bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                <div class="w-full h-full bg-purple-500"></div>
+                            </div>
+                        </div>
+
+                        <div class="group">
+                            <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>12:31 - END</span>
+                                <span class="text-cyber-yellow">ADVANCED</span>
+                            </div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">地形與數據疊加</h3>
+                            <p class="text-xs text-gray-500">
+                                進階教學：載入 SRTM 地形數據 (`grdimage`) 並疊加自訂座標點 (`plot`)，完成專業級地圖。
+                            </p>
+                            <div class="w-full h-1 bg-gray-300 dark:bg-gray-800 mt-2 rounded-full overflow-hidden">
+                                <div class="w-full h-full bg-cyber-yellow"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="https://www.youtube.com/watch?v=H2wgFfvR2pI" target="_blank" class="block mt-8 text-center py-3 border border-gray-400 dark:border-gray-600 text-gray-600 dark:text-gray-400 text-xs hover:bg-red-600 hover:text-white hover:border-red-600 transition">
+                        OPEN SOURCE_LINK <i class="fa-solid fa-arrow-up-right-from-square ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="system-modules" class="py-20 relative border-t border-gray-200 dark:border-white/5 bg-white dark:bg-transparent">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex items-center justify-between mb-12">
+                <div>
+                    <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-2">核心優勢 <span class="text-cyber-pink">.MODULES</span></h2>
+                    <p class="text-gray-500 font-mono text-sm tracking-wider">SYSTEM CAPABILITIES ANALYSIS</p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                
-                <div class="feature-card glass-panel p-6 border border-gray-800 rounded relative overflow-hidden group transition-all duration-300" data-tilt>
-                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-700 font-mono">01</div>
-                    <i class="fa-solid fa-bezier-curve text-3xl text-gray-500 mb-4 feature-icon transition duration-300"></i>
-                    <h3 class="text-white font-bold font-mono text-lg mb-2 group-hover:text-cyber-blue">VECTOR_QUALITY</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
-                        支援 PostScript/PDF 向量輸出。出版級的高解析度，放大 N 倍依然清晰銳利。
-                    </p>
-                    <div class="mt-4 h-[1px] w-10 bg-gray-700 group-hover:w-full group-hover:bg-cyber-blue transition-all duration-500"></div>
+                <div class="glass-panel p-6 rounded relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 dark:bg-[#0a0a0a]" data-tilt>
+                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-400 dark:text-gray-700 font-mono">01</div>
+                    <i class="fa-solid fa-bezier-curve text-3xl text-gray-400 dark:text-gray-500 mb-4 group-hover:text-cyber-blue transition"></i>
+                    <h3 class="text-gray-800 dark:text-white font-bold font-mono text-lg mb-2">VECTOR_QUALITY</h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">支援出版級的高解析度向量輸出 (PDF/EPS)，放大 N 倍依然清晰。</p>
                 </div>
-
-                <div class="feature-card glass-panel p-6 border border-gray-800 rounded relative overflow-hidden group transition-all duration-300" data-tilt>
-                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-700 font-mono">02</div>
-                    <i class="fa-brands fa-python text-3xl text-gray-500 mb-4 feature-icon transition duration-300"></i>
-                    <h3 class="text-white font-bold font-mono text-lg mb-2 group-hover:text-cyber-blue">PYTHON_NATIVE</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
-                        完美整合 Pandas DataFrame 與 Xarray。告別繁瑣的暫存檔，直接用變數傳遞數據。
-                    </p>
-                    <div class="mt-4 h-[1px] w-10 bg-gray-700 group-hover:w-full group-hover:bg-cyber-blue transition-all duration-500"></div>
+                <div class="glass-panel p-6 rounded relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 dark:bg-[#0a0a0a]" data-tilt>
+                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-400 dark:text-gray-700 font-mono">02</div>
+                    <i class="fa-brands fa-python text-3xl text-gray-400 dark:text-gray-500 mb-4 group-hover:text-cyber-blue transition"></i>
+                    <h3 class="text-gray-800 dark:text-white font-bold font-mono text-lg mb-2">PYTHON_NATIVE</h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">完美整合 Pandas 與 Xarray。告別繁瑣的暫存檔，數據直接傳遞。</p>
                 </div>
-
-                <div class="feature-card glass-panel p-6 border border-gray-800 rounded relative overflow-hidden group transition-all duration-300" data-tilt>
-                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-700 font-mono">03</div>
-                    <i class="fa-solid fa-code text-3xl text-gray-500 mb-4 feature-icon transition duration-300"></i>
-                    <h3 class="text-white font-bold font-mono text-lg mb-2 group-hover:text-cyber-blue">MODERN_SYNTAX</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
-                        物件導向設計。使用 <span class="text-cyber-pink font-mono">fig.plot()</span> 取代傳統 GMT 的冗長指令列。
-                    </p>
-                    <div class="mt-4 h-[1px] w-10 bg-gray-700 group-hover:w-full group-hover:bg-cyber-blue transition-all duration-500"></div>
+                <div class="glass-panel p-6 rounded relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 dark:bg-[#0a0a0a]" data-tilt>
+                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-400 dark:text-gray-700 font-mono">03</div>
+                    <i class="fa-solid fa-code text-3xl text-gray-400 dark:text-gray-500 mb-4 group-hover:text-cyber-blue transition"></i>
+                    <h3 class="text-gray-800 dark:text-white font-bold font-mono text-lg mb-2">MODERN_SYNTAX</h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">物件導向設計。使用 fig.plot() 取代傳統 GMT 的冗長指令列。</p>
                 </div>
-
-                <div class="feature-card glass-panel p-6 border border-gray-800 rounded relative overflow-hidden group transition-all duration-300" data-tilt>
-                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-700 font-mono">04</div>
-                    <i class="fa-solid fa-robot text-3xl text-gray-500 mb-4 feature-icon transition duration-300"></i>
-                    <h3 class="text-white font-bold font-mono text-lg mb-2 group-hover:text-cyber-blue">AUTO_MATION</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed">
-                        適合批次處理大數據。結合 Python 迴圈，一鍵生成數百張地震分佈圖。
-                    </p>
-                    <div class="mt-4 h-[1px] w-10 bg-gray-700 group-hover:w-full group-hover:bg-cyber-blue transition-all duration-500"></div>
-                </div>
-
-            </div>
-
-            <div class="mt-16 glass-panel rounded-lg overflow-hidden border border-gray-800">
-                <div class="bg-[#111] p-3 border-b border-gray-800 flex justify-between items-center">
-                    <span class="text-xs font-mono text-gray-400">COMPARISON_MATRIX.csv</span>
-                    <div class="flex gap-1">
-                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                        <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-black/50 text-xs font-mono text-gray-500 uppercase tracking-wider">
-                            <tr>
-                                <th class="p-4 border-b border-gray-800">Feature</th>
-                                <th class="p-4 border-b border-gray-800 text-cyber-blue">PyGMT</th>
-                                <th class="p-4 border-b border-gray-800">Matplotlib (Basemap)</th>
-                                <th class="p-4 border-b border-gray-800">QGIS / ArcGIS</th>
-                            </tr>
-                        </thead>
-                        <tbody class="text-sm font-mono text-gray-400 divide-y divide-gray-800">
-                            <tr class="hover:bg-white/5 transition">
-                                <td class="p-4 font-bold text-gray-300">Rendering Engine</td>
-                                <td class="p-4 text-cyber-blue">PostScript (Vector)</td>
-                                <td class="p-4">Agg (Raster/Vector)</td>
-                                <td class="p-4">Qt / DirectX</td>
-                            </tr>
-                            <tr class="hover:bg-white/5 transition">
-                                <td class="p-4 font-bold text-gray-300">Scripting</td>
-                                <td class="p-4 text-cyber-blue">Native Python</td>
-                                <td class="p-4">Native Python</td>
-                                <td class="p-4">PyQGIS / ArcPy</td>
-                            </tr>
-                            <tr class="hover:bg-white/5 transition">
-                                <td class="p-4 font-bold text-gray-300">Learning Curve</td>
-                                <td class="p-4 text-yellow-500">Medium</td>
-                                <td class="p-4 text-yellow-500">Medium</td>
-                                <td class="p-4 text-green-500">Low (GUI)</td>
-                            </tr>
-                            <tr class="hover:bg-white/5 transition">
-                                <td class="p-4 font-bold text-gray-300">Big Data</td>
-                                <td class="p-4 text-cyber-blue">Excellent</td>
-                                <td class="p-4">Good</td>
-                                <td class="p-4">Laggy</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="glass-panel p-6 rounded relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 dark:bg-[#0a0a0a]" data-tilt>
+                    <div class="absolute top-0 right-0 p-3 opacity-20 text-4xl font-black text-gray-400 dark:text-gray-700 font-mono">04</div>
+                    <i class="fa-solid fa-users text-3xl text-gray-400 dark:text-gray-500 mb-4 group-hover:text-cyber-blue transition"></i>
+                    <h3 class="text-gray-800 dark:text-white font-bold font-mono text-lg mb-2">OPEN_SOURCE</h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">活躍的 GitHub 社群與豐富的文檔，全球開發者共同維護。</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="map-hud" class="py-32 relative border-t border-white/5 bg-[#050505]">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="flex items-end justify-between mb-10">
-                <div>
-                    <h2 class="text-5xl font-bold text-white mb-2">TARGET <span class="text-cyber-blue">ACQUISITION</span></h2>
-                    <p class="text-gray-500 font-mono text-sm tracking-wider">MODULE: REGION_SELECTOR (-R)</p>
+    <section id="install-hub" class="py-20 bg-gray-100 dark:bg-[#050505] border-t border-gray-200 dark:border-white/5">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-3xl font-bold text-center mb-10 text-gray-900 dark:text-white">安裝指揮艙 <span class="text-cyber-blue">.INSTALL</span></h2>
+            
+            <div class="glass-panel rounded-xl overflow-hidden shadow-xl border border-gray-300 dark:border-gray-800">
+                <div class="flex border-b border-gray-300 dark:border-gray-800 bg-gray-200 dark:bg-[#111]">
+                    <button class="px-6 py-3 text-sm font-bold font-mono text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 hover:text-blue-500 transition border-r border-gray-300 dark:border-gray-800">conda</button>
+                    <button class="px-6 py-3 text-sm font-bold font-mono text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 hover:text-blue-500 transition">pip</button>
+                    <div class="flex-1 flex items-center justify-end px-4 gap-2">
+                        <div class="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-700"></div>
+                        <div class="w-3 h-3 rounded-full bg-gray-400 dark:bg-gray-700"></div>
+                    </div>
+                </div>
+                <div class="p-8 bg-white dark:bg-[#0a0a0a] font-mono text-sm relative group">
+                    <p class="text-gray-500 mb-2"># 1. Create a virtual environment (Recommended)</p>
+                    <code class="block text-gray-800 dark:text-green-400 mb-4">conda create --name pygmt --channel conda-forge pygmt</code>
+                    <p class="text-gray-500 mb-2"># 2. Activate environment</p>
+                    <code class="block text-gray-800 dark:text-green-400">conda activate pygmt</code>
+                    <button class="absolute top-8 right-8 text-gray-400 hover:text-blue-500"><i class="fa-regular fa-copy text-xl"></i></button>
                 </div>
             </div>
+            <p class="text-center text-gray-500 text-xs mt-4 font-mono">Compatible with: Windows | macOS | Linux</p>
+        </div>
+    </section>
 
+    <section id="map-hud" class="py-32 relative border-t border-gray-200 dark:border-white/5 bg-white dark:bg-[#050505]">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-5xl font-bold text-gray-900 dark:text-white mb-2">TARGET <span class="text-blue-600 dark:text-cyber-blue">ACQUISITION</span></h2>
+            <p class="text-gray-500 font-mono text-sm tracking-wider mb-8">MODULE: REGION_SELECTOR (-R)</p>
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div class="lg:col-span-4 space-y-4">
-                    <div class="glass-panel p-8 rounded border-t-2 border-cyber-blue relative overflow-hidden">
-                        <div class="text-xs font-mono text-cyber-blue mb-2">OUTPUT_PARAMETER</div>
-                        <code id="region-code" class="text-2xl font-mono text-white break-all block mb-4">loading...</code>
-                        <button onclick="copyCode('region-code')" class="w-full py-2 border border-gray-700 text-gray-400 font-mono text-xs hover:bg-cyber-blue hover:text-black hover:border-cyber-blue transition uppercase">
-                            <i class="fa-regular fa-copy mr-2"></i> Copy to Clipboard
+                    <div class="glass-panel p-8 rounded border-t-2 border-blue-500 dark:border-cyber-blue relative overflow-hidden bg-white dark:bg-[#111]">
+                        <div class="text-xs font-mono text-blue-500 dark:text-cyber-blue mb-2">OUTPUT_PARAMETER</div>
+                        <code id="region-code" class="text-2xl font-mono text-gray-800 dark:text-white break-all block mb-4">loading...</code>
+                        <button onclick="copyCode('region-code')" class="w-full py-2 border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 font-mono text-xs hover:bg-blue-500 hover:text-white dark:hover:bg-cyber-blue dark:hover:text-black transition uppercase">
+                            Copy to Clipboard
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="glass-panel p-4 border-l-2 border-cyber-pink">
-                            <div class="text-[10px] text-gray-500 font-mono mb-1">LONGITUDE_X</div>
-                            <div id="disp-lon" class="text-lg font-bold font-mono text-white">---</div>
-                        </div>
-                        <div class="glass-panel p-4 border-l-2 border-cyber-yellow">
-                            <div class="text-[10px] text-gray-500 font-mono mb-1">LATITUDE_Y</div>
-                            <div id="disp-lat" class="text-lg font-bold font-mono text-white">---</div>
-                        </div>
-                    </div>
                 </div>
-
-                <div class="lg:col-span-8 h-[600px] relative border border-gray-800 bg-[#050505] group">
-                    <div id="map" class="w-full h-full z-10 grayscale hover:grayscale-0 transition-all duration-700 opacity-60 hover:opacity-100"></div>
+                <div class="lg:col-span-8 h-[600px] relative border border-gray-300 dark:border-gray-800 bg-gray-100 dark:bg-[#050505] group rounded-lg overflow-hidden">
+                    <div id="map" class="w-full h-full z-10 transition-all duration-700"></div>
                     <div class="hud-corner tl"></div><div class="hud-corner tr"></div><div class="hud-corner bl"></div><div class="hud-corner br"></div>
-                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyber-blue/30 rounded-full flex items-center justify-center pointer-events-none z-20">
-                        <div class="w-1 h-1 bg-cyber-blue"></div>
-                        <div class="absolute top-0 w-[1px] h-4 bg-cyber-blue"></div>
-                        <div class="absolute bottom-0 w-[1px] h-4 bg-cyber-blue"></div>
-                        <div class="absolute left-0 w-4 h-[1px] bg-cyber-blue"></div>
-                        <div class="absolute right-0 w-4 h-[1px] bg-cyber-blue"></div>
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-blue-500/30 dark:border-cyber-blue/30 rounded-full flex items-center justify-center pointer-events-none z-20">
+                        <div class="w-1 h-1 bg-blue-500 dark:bg-cyber-blue"></div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="layer-sim" class="py-32 bg-[#020202] relative overflow-hidden border-t border-white/5">
-        <div class="absolute right-0 top-0 w-1/3 h-full bg-cyber-blue/5 skew-x-12 pointer-events-none"></div>
+    <section id="layer-sim" class="py-32 bg-gray-50 dark:bg-[#020202] relative overflow-hidden border-t border-gray-200 dark:border-white/5">
         <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
-                <span class="text-cyber-pink font-mono text-xs tracking-widest">VISUALIZATION ENGINE</span>
-                <h2 class="text-4xl font-bold text-white mt-2 mb-6">圖層堆疊模擬器 <br><span class="text-gray-600">LAYER_STACK</span></h2>
-                <p class="text-gray-400 mb-8 leading-relaxed">
-                    PyGMT 的繪圖邏輯如同油畫堆疊。透過下方的控制面板，啟動不同圖層模組，理解它們的 <span class="text-white font-bold">Z-Order (前後關係)</span>。
-                </p>
+                <span class="text-pink-500 dark:text-cyber-pink font-mono text-xs tracking-widest">VISUALIZATION ENGINE</span>
+                <h2 class="text-4xl font-bold text-gray-900 dark:text-white mt-2 mb-6">圖層堆疊模擬器 <br><span class="text-gray-500">LAYER_STACK</span></h2>
                 <div class="space-y-4 font-mono text-sm">
-                    <div class="flex items-center justify-between p-4 border border-gray-800 bg-[#0a0a0a] hover:border-white transition cursor-pointer" onclick="toggleLayer('base')">
-                        <span class="text-white">01. CANVAS_BASE (Figure)</span>
-                        <div id="btn-base" class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]"></div>
+                    <div class="flex items-center justify-between p-4 border border-gray-300 dark:border-gray-800 bg-white dark:bg-[#0a0a0a] cursor-pointer hover:shadow-lg transition" onclick="toggleLayer('base')">
+                        <span class="text-gray-800 dark:text-white">01. CANVAS_BASE</span>
+                        <div id="btn-base" class="w-3 h-3 bg-green-500 rounded-full"></div>
                     </div>
-                    <div class="flex items-center justify-between p-4 border border-gray-800 bg-[#0a0a0a] hover:border-cyber-blue transition cursor-pointer" onclick="toggleLayer('coast')">
-                        <span class="text-cyber-blue">02. COASTLINE (fig.coast)</span>
-                        <div id="btn-coast" class="w-3 h-3 bg-gray-600 rounded-full"></div>
+                    <div class="flex items-center justify-between p-4 border border-gray-300 dark:border-gray-800 bg-white dark:bg-[#0a0a0a] cursor-pointer hover:shadow-lg transition" onclick="toggleLayer('coast')">
+                        <span class="text-blue-500 dark:text-cyber-blue">02. COASTLINE</span>
+                        <div id="btn-coast" class="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                     </div>
-                    <div class="flex items-center justify-between p-4 border border-gray-800 bg-[#0a0a0a] hover:border-cyber-pink transition cursor-pointer" onclick="toggleLayer('grid')">
-                        <span class="text-cyber-pink">03. GRID_LINES (fig.basemap)</span>
-                        <div id="btn-grid" class="w-3 h-3 bg-gray-600 rounded-full"></div>
-                    </div>
-                    <div class="flex items-center justify-between p-4 border border-gray-800 bg-[#0a0a0a] hover:border-cyber-yellow transition cursor-pointer" onclick="toggleLayer('data')">
-                        <span class="text-cyber-yellow">04. DATA_POINTS (fig.plot)</span>
-                        <div id="btn-data" class="w-3 h-3 bg-gray-600 rounded-full"></div>
+                    <div class="flex items-center justify-between p-4 border border-gray-300 dark:border-gray-800 bg-white dark:bg-[#0a0a0a] cursor-pointer hover:shadow-lg transition" onclick="toggleLayer('data')">
+                        <span class="text-yellow-600 dark:text-cyber-yellow">03. DATA_POINTS</span>
+                        <div id="btn-data" class="w-3 h-3 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                     </div>
                 </div>
             </div>
             <div class="h-[500px] flex items-center justify-center relative perspective-1000">
                 <div class="layer-container relative w-64 h-64">
                     <div id="layer-base" class="layer active absolute inset-0 bg-white shadow-xl flex items-center justify-center text-black font-bold font-mono text-xs" style="--z-index: 0px;">FIGURE()</div>
-                    <div id="layer-coast" class="layer absolute inset-0 bg-blue-500/20 border-2 border-blue-500 flex items-center justify-center text-blue-300 font-bold font-mono text-xs backdrop-blur-sm" style="--z-index: 50px;"><i class="fa-solid fa-water text-4xl opacity-50"></i></div>
-                    <div id="layer-grid" class="layer absolute inset-0 bg-transparent border-2 border-pink-500 flex items-center justify-center text-pink-300 font-bold font-mono text-xs" style="--z-index: 100px; background-image: radial-gradient(circle, #ff00ff 1px, transparent 1px); background-size: 20px 20px;">GRID</div>
-                    <div id="layer-data" class="layer absolute inset-0 bg-transparent flex items-center justify-center" style="--z-index: 150px;">
-                        <div class="w-4 h-4 bg-yellow-400 rounded-full absolute top-10 left-10 animate-bounce"></div>
+                    <div id="layer-coast" class="layer absolute inset-0 bg-blue-500/20 border-2 border-blue-500 flex items-center justify-center text-blue-800 dark:text-blue-300 font-bold font-mono text-xs backdrop-blur-sm" style="--z-index: 50px;"><i class="fa-solid fa-water text-4xl opacity-50"></i></div>
+                    <div id="layer-data" class="layer absolute inset-0 bg-transparent flex items-center justify-center" style="--z-index: 100px;">
+                        <div class="w-4 h-4 bg-yellow-400 rounded-full absolute top-10 left-10"></div>
                         <div class="w-3 h-3 bg-yellow-400 rounded-full absolute top-1/2 left-1/2"></div>
                     </div>
                 </div>
@@ -365,89 +361,62 @@
         </div>
     </section>
 
-    <section id="code-matrix" class="py-32 bg-gradient-to-b from-[#050505] to-[#0a0a0a] border-t border-white/5">
+    <section id="code-matrix" class="py-32 bg-gray-100 dark:bg-[#0a0a0a] border-t border-gray-200 dark:border-white/5">
         <div class="max-w-7xl mx-auto px-6">
-            <h2 class="text-4xl font-bold mb-12 text-center text-white">代碼生成矩陣 <span class="text-cyber-blue">.MATRIX</span></h2>
-            <div class="glass-panel rounded overflow-hidden shadow-2xl border border-gray-800 flex flex-col md:flex-row min-h-[500px]">
-                <div class="w-full md:w-1/3 p-8 border-r border-gray-800 bg-[#0d1117]">
-                    <div class="space-y-10">
-                        <div>
-                            <label class="block text-[10px] font-bold text-cyber-blue mb-4 tracking-widest">PROJECTION</label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <button onclick="updateBuilder('proj', 'M15c', this)" class="builder-btn active p-3 text-xs font-mono border border-cyber-blue text-cyber-blue bg-cyber-blue/10 rounded text-left">Mercator</button>
-                                <button onclick="updateBuilder('proj', 'Q15c', this)" class="builder-btn p-3 text-xs font-mono border border-gray-700 text-gray-400 rounded text-left">Cylindrical</button>
-                                <button onclick="updateBuilder('proj', 'G60/20/15c', this)" class="builder-btn p-3 text-xs font-mono border border-gray-700 text-gray-400 rounded text-left">Orthographic</button>
-                                <button onclick="updateBuilder('proj', 'X15c/10c', this)" class="builder-btn p-3 text-xs font-mono border border-gray-700 text-gray-400 rounded text-left">Linear</button>
-                            </div>
-                        </div>
-                        <div>
-                             <label class="block text-[10px] font-bold text-cyber-pink mb-4 tracking-widest">LAND_COLOR</label>
-                             <div class="flex flex-wrap gap-2">
-                                <div onclick="updateBuilder('land', 'gray', this)" class="w-8 h-8 rounded bg-gray-500 cursor-pointer hover:ring-2 ring-white transition"></div>
-                                <div onclick="updateBuilder('land', 'black', this)" class="w-8 h-8 rounded bg-black border border-gray-600 cursor-pointer hover:ring-2 ring-white transition"></div>
-                                <div onclick="updateBuilder('land', 'bisque', this)" class="w-8 h-8 rounded bg-[#ffe4c4] cursor-pointer hover:ring-2 ring-white transition"></div>
-                            </div>
-                        </div>
+            <h2 class="text-4xl font-bold mb-12 text-center text-gray-900 dark:text-white">代碼生成矩陣 <span class="text-blue-600 dark:text-cyber-blue">.MATRIX</span></h2>
+            <div class="glass-panel rounded overflow-hidden shadow-2xl border border-gray-300 dark:border-gray-800 flex flex-col md:flex-row min-h-[500px]">
+                <div class="w-full md:w-1/3 p-8 border-r border-gray-300 dark:border-gray-800 bg-gray-50 dark:bg-[#0d1117]">
+                    <label class="block text-[10px] font-bold text-blue-600 dark:text-cyber-blue mb-4 tracking-widest">PROJECTION</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="updateBuilder('proj', 'M15c', this)" class="builder-btn active p-3 text-xs font-mono border border-blue-500 text-blue-600 bg-blue-50 dark:border-cyber-blue dark:text-cyber-blue dark:bg-cyber-blue/10 rounded text-left">Mercator</button>
+                        <button onclick="updateBuilder('proj', 'Q15c', this)" class="builder-btn p-3 text-xs font-mono border border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded text-left">Cylindrical</button>
                     </div>
                 </div>
-                <div class="w-full md:w-2/3 bg-[#020202] p-10 font-mono text-sm relative">
-                    <div class="pl-8 text-gray-300 leading-relaxed">
-                        <span class="text-purple-400">import</span> pygmt<br><br>
-                        fig = pygmt.Figure()<br><br>
+                <div class="w-full md:w-2/3 bg-white dark:bg-[#020202] p-10 font-mono text-sm relative">
+                    <div class="pl-8 text-gray-800 dark:text-gray-300 leading-relaxed">
+                        <span class="text-purple-600 dark:text-purple-400">import</span> pygmt<br><br>
+                        fig = pygmt.Figure()<br>
                         fig.coast(<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;region=[<span class="text-orange-400">-180</span>, <span class="text-orange-400">180</span>, <span class="text-orange-400">-60</span>, <span class="text-orange-400">60</span>],<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">projection</span>="<span id="code-proj" class="text-green-400">M15c</span>",<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">land</span>="<span id="code-land" class="text-green-400">gray</span>",<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">water</span>="<span class="text-green-400">lightblue</span>",<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">frame</span>="<span class="text-green-400">afg</span>"<br>
-                        )<br><br>
-                        fig.show()
+                        &nbsp;&nbsp;&nbsp;&nbsp;region=[<span class="text-orange-500 dark:text-orange-400">-180</span>, <span class="text-orange-500 dark:text-orange-400">180</span>, ...],<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-600 dark:text-blue-400">projection</span>="<span id="code-proj" class="text-green-600 dark:text-green-400">M15c</span>"<br>
+                        )
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="data-vault" class="py-20 bg-[#0a0a0a] border-t border-gray-800">
+    <section id="data-vault" class="py-20 bg-gray-50 dark:bg-[#0a0a0a] border-t border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-6">
-            <h2 class="text-3xl font-bold mb-8 text-white flex items-center gap-3">
-                <i class="fa-solid fa-folder-tree text-gray-600"></i>
-                資源庫 <span class="font-mono text-base text-gray-600 font-normal">./VAULT</span>
+            <h2 class="text-3xl font-bold mb-8 text-gray-900 dark:text-white flex items-center gap-3">
+                <i class="fa-solid fa-folder-tree text-gray-400 dark:text-gray-600"></i>
+                資源庫 <span class="font-mono text-base text-gray-500 font-normal">./VAULT</span>
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <a href="https://www.pygmt.org" target="_blank" class="block p-6 bg-[#161b22] border border-[#30363d] rounded hover:border-gray-400 transition group" data-tilt>
-                    <div class="flex justify-between items-start mb-4">
-                        <i class="fa-regular fa-file-code text-gray-400 text-xl group-hover:text-blue-400"></i>
-                        <span class="text-xs text-gray-500 font-mono border border-gray-700 px-2 py-0.5 rounded">DOCS</span>
-                    </div>
-                    <h3 class="text-white font-bold mb-2 group-hover:text-blue-400">Official Documentation</h3>
+                <a href="https://www.pygmt.org" target="_blank" class="block p-6 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-[#30363d] rounded hover:border-blue-400 dark:hover:border-gray-400 transition group shadow-sm hover:shadow-md" data-tilt>
+                    <h3 class="text-gray-900 dark:text-white font-bold mb-2 group-hover:text-blue-500">Official Documentation</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">The primary source of truth.</p>
                 </a>
-                <a href="https://github.com/GenericMappingTools/pygmt" target="_blank" class="block p-6 bg-[#161b22] border border-[#30363d] rounded hover:border-gray-400 transition group" data-tilt>
-                    <div class="flex justify-between items-start mb-4">
-                        <i class="fa-brands fa-github text-gray-400 text-xl group-hover:text-white"></i>
-                        <span class="text-xs text-gray-500 font-mono border border-gray-700 px-2 py-0.5 rounded">REPO</span>
-                    </div>
-                    <h3 class="text-white font-bold mb-2 group-hover:text-blue-400">GitHub Repository</h3>
+                <a href="https://github.com/GenericMappingTools/pygmt" target="_blank" class="block p-6 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-[#30363d] rounded hover:border-blue-400 dark:hover:border-gray-400 transition group shadow-sm hover:shadow-md" data-tilt>
+                    <h3 class="text-gray-900 dark:text-white font-bold mb-2 group-hover:text-blue-500">GitHub Repo</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Source code and issues.</p>
                 </a>
-                <a href="https://gmt-china.org/" target="_blank" class="block p-6 bg-[#161b22] border border-[#30363d] rounded hover:border-gray-400 transition group" data-tilt>
-                    <div class="flex justify-between items-start mb-4">
-                        <i class="fa-solid fa-users text-gray-400 text-xl group-hover:text-red-400"></i>
-                        <span class="text-xs text-gray-500 font-mono border border-gray-700 px-2 py-0.5 rounded">COMMUNITY</span>
-                    </div>
-                    <h3 class="text-white font-bold mb-2 group-hover:text-blue-400">GMT China Community</h3>
+                <a href="https://gmt-china.org/" target="_blank" class="block p-6 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-[#30363d] rounded hover:border-blue-400 dark:hover:border-gray-400 transition group shadow-sm hover:shadow-md" data-tilt>
+                    <h3 class="text-gray-900 dark:text-white font-bold mb-2 group-hover:text-blue-500">GMT China</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Community resources.</p>
                 </a>
             </div>
         </div>
     </section>
 
-    <section id="terminal-access" class="py-20 bg-black">
+    <section id="terminal-access" class="py-20 bg-gray-900 dark:bg-black">
         <div class="max-w-4xl mx-auto px-6">
-            <div class="bg-[#0d1117] rounded-t-lg p-3 flex items-center gap-2 border border-gray-800 border-b-0">
+            <div class="bg-gray-800 dark:bg-[#0d1117] rounded-t-lg p-3 flex items-center gap-2 border border-gray-700 dark:border-gray-800 border-b-0">
                 <div class="w-3 h-3 rounded-full bg-red-500"></div><div class="w-3 h-3 rounded-full bg-yellow-500"></div><div class="w-3 h-3 rounded-full bg-green-500"></div>
                 <span class="ml-2 text-xs text-gray-400 font-mono">usr@pygmt-server:~</span>
             </div>
-            <div class="bg-[#050505] p-6 h-80 overflow-y-auto border border-gray-800 font-mono text-sm shadow-2xl" id="terminal-body" onclick="document.getElementById('cmd-input').focus()">
-                <div class="text-gray-500 mb-2">PyGMT Interactive Shell v4.0.0</div>
+            <div class="bg-black dark:bg-[#050505] p-6 h-80 overflow-y-auto border border-gray-700 dark:border-gray-800 font-mono text-sm shadow-2xl" id="terminal-body" onclick="document.getElementById('cmd-input').focus()">
+                <div class="text-gray-500 mb-2">PyGMT Interactive Shell v6.0.0</div>
                 <div class="text-gray-500 mb-4">Type 'help' to see available commands.</div>
                 <div id="terminal-output"></div>
                 <div class="flex">
@@ -458,9 +427,8 @@
         </div>
     </section>
 
-    <footer class="bg-black py-12 border-t border-gray-900 text-center font-mono text-xs text-gray-600">
-        <p>SYSTEM_ID: PCC-V4 // STATUS: OPTIMAL</p>
-        <p class="mt-2">MADE WITH <span class="text-cyber-pink">DATA</span> & <span class="text-cyber-blue">CODE</span></p>
+    <footer class="bg-gray-100 dark:bg-black py-12 border-t border-gray-200 dark:border-gray-900 text-center font-mono text-xs text-gray-500 dark:text-gray-600">
+        <p>SYSTEM_ID: PCC-V6 // STATUS: OPTIMAL</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -473,47 +441,80 @@
             cursorOutline.animate({ left: `${e.clientX}px`, top: `${e.clientY}px` }, { duration: 500, fill: "forwards" });
         });
 
-        // 2. Map Logic
+        // 2. Map Logic (Adaptive Tiles)
         const map = L.map('map', { zoomControl: false }).setView([23.5, 121], 5);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' }).addTo(map);
+        const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
+        const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
+        
+        // Initial Tile Load
+        if (document.documentElement.classList.contains('dark')) { darkTiles.addTo(map); } else { lightTiles.addTo(map); }
+
         map.on('move', () => {
             const b = map.getBounds();
             document.getElementById('region-code').innerText = `region=[${b.getWest().toFixed(2)}, ${b.getEast().toFixed(2)}, ${b.getSouth().toFixed(2)}, ${b.getNorth().toFixed(2)}]`;
-            document.getElementById('disp-lon').innerText = `${b.getWest().toFixed(2)} : ${b.getEast().toFixed(2)}`;
-            document.getElementById('disp-lat').innerText = `${b.getSouth().toFixed(2)} : ${b.getNorth().toFixed(2)}`;
         });
-
-        // 3. Layer Sim
-        const layerState = { base: true, coast: false, grid: false, data: false };
-        function toggleLayer(layer) {
-            layerState[layer] = !layerState[layer];
-            const el = document.getElementById(`layer-${layer}`);
-            const btn = document.getElementById(`btn-${layer}`);
-            if (layerState[layer]) {
-                el.classList.add('active'); btn.classList.remove('bg-gray-600'); btn.classList.add('bg-green-500', 'shadow-[0_0_10px_#22c55e]');
-            } else {
-                el.classList.remove('active'); btn.classList.add('bg-gray-600'); btn.classList.remove('bg-green-500', 'shadow-[0_0_10px_#22c55e]');
-            }
-        }
-
-        // 4. Code Builder
-        function updateBuilder(type, value, btn) {
-            document.getElementById(`code-${type}`).innerText = value;
-            const parent = btn.parentElement;
-            parent.querySelectorAll('button').forEach(b => {
-                b.classList.remove('border-cyber-blue', 'text-cyber-blue', 'bg-cyber-blue/10');
-                b.classList.add('border-gray-700', 'text-gray-400');
-            });
-            btn.classList.add('border-cyber-blue', 'text-cyber-blue', 'bg-cyber-blue/10');
-            btn.classList.remove('border-gray-700', 'text-gray-400');
-        }
 
         function copyCode(id) {
             navigator.clipboard.writeText(document.getElementById(id).innerText);
             alert("COPIED!");
         }
 
-        // 5. Terminal
+        // 3. Theme Toggle (Fixes)
+        const html = document.documentElement;
+        const toggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        
+        // Check system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+            themeIcon.className = "fa-solid fa-sun text-yellow-400";
+            if(map.hasLayer(lightTiles)) map.removeLayer(lightTiles);
+            darkTiles.addTo(map);
+        } else {
+            html.classList.remove('dark');
+            themeIcon.className = "fa-solid fa-moon text-gray-600";
+            if(map.hasLayer(darkTiles)) map.removeLayer(darkTiles);
+            lightTiles.addTo(map);
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            html.classList.toggle('dark');
+            if (html.classList.contains('dark')) {
+                localStorage.theme = 'dark';
+                themeIcon.className = "fa-solid fa-sun text-yellow-400";
+                map.removeLayer(lightTiles); map.addLayer(darkTiles);
+            } else {
+                localStorage.theme = 'light';
+                themeIcon.className = "fa-solid fa-moon text-gray-600";
+                map.removeLayer(darkTiles); map.addLayer(lightTiles);
+            }
+        });
+
+        // 4. Layer Sim
+        const layerState = { base: true, coast: false, data: false };
+        function toggleLayer(layer) {
+            layerState[layer] = !layerState[layer];
+            const el = document.getElementById(`layer-${layer}`);
+            const btn = document.getElementById(`btn-${layer}`);
+            if (layerState[layer]) {
+                el.classList.add('active'); btn.classList.add('bg-green-500'); btn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+            } else {
+                el.classList.remove('active'); btn.classList.remove('bg-green-500'); btn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+            }
+        }
+
+        // 5. Code Builder
+        function updateBuilder(type, value, btn) {
+            document.getElementById(`code-${type}`).innerText = value;
+            btn.parentElement.querySelectorAll('button').forEach(b => {
+                b.classList.remove('active', 'border-blue-500', 'text-blue-600', 'bg-blue-50', 'dark:border-cyber-blue', 'dark:text-cyber-blue', 'dark:bg-cyber-blue/10');
+                b.classList.add('border-gray-300', 'dark:border-gray-700', 'text-gray-500', 'dark:text-gray-400');
+            });
+            btn.classList.add('active', 'border-blue-500', 'text-blue-600', 'bg-blue-50', 'dark:border-cyber-blue', 'dark:text-cyber-blue', 'dark:bg-cyber-blue/10');
+            btn.classList.remove('border-gray-300', 'dark:border-gray-700', 'text-gray-500', 'dark:text-gray-400');
+        }
+
+        // 6. Terminal
         const terminalOutput = document.getElementById('terminal-output');
         const cmdInput = document.getElementById('cmd-input');
         cmdInput.addEventListener('keypress', function (e) {
@@ -521,14 +522,13 @@
                 const cmd = this.value.toLowerCase().trim();
                 let response = "";
                 const cmdLine = document.createElement('div');
-                cmdLine.innerHTML = `<span class="text-green-500 mr-2">➜</span><span class="text-blue-400 mr-2">~</span><span class="text-white">${this.value}</span>`;
+                cmdLine.innerHTML = `<span class="text-green-500 mr-2">➜</span><span class="text-blue-400 mr-2">~</span><span class="text-gray-200">${this.value}</span>`;
                 terminalOutput.appendChild(cmdLine);
-                
                 switch(cmd) {
-                    case 'help': response = `<div class="ml-4 text-gray-500 grid grid-cols-2 max-w-xs"><span class="text-cyber-blue">install</span><span>Show guide</span><span class="text-cyber-blue">clear</span><span>Clear</span></div>`; break;
-                    case 'install': response = `<div class="ml-4 text-gray-300">conda create --name pygmt --channel conda-forge pygmt</div>`; break;
+                    case 'help': response = `<div class="ml-4 text-gray-500">Commands: install, clear, date</div>`; break;
+                    case 'install': response = `<div class="ml-4 text-gray-300">conda install pygmt</div>`; break;
                     case 'clear': terminalOutput.innerHTML = ""; response = null; break;
-                    case '': response = null; break;
+                    case 'date': response = `<div class="ml-4 text-gray-400">${new Date().toLocaleTimeString()}</div>`; break;
                     default: response = `<div class="ml-4 text-red-500">Error: ${cmd}</div>`;
                 }
                 if (response) { const r = document.createElement('div'); r.innerHTML = response; terminalOutput.appendChild(r); }
@@ -537,8 +537,8 @@
             }
         });
 
-        // 6. Tilt
-        VanillaTilt.init(document.querySelectorAll("[data-tilt]"), { max: 15, speed: 400, glare: true, "max-glare": 0.2 });
+        // 7. Tilt
+        VanillaTilt.init(document.querySelectorAll("[data-tilt]"), { max: 10, speed: 400, glare: true, "max-glare": 0.2 });
     </script>
 </body>
 </html>
